@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Raw React | React</title>
+    <link rel="stylesheet" href="css/base.css"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <body>
+    <div id="react-app"></div>
+    <!-- React Libs -->
+    <script src="https://cdn.jsdelivr.net/react/0.14.0-rc1/react.js"></script>
+    <script src="https://cdn.jsdelivr.net/react/0.14.0-rc1/react-dom.js"></script>
+  </body>
+  <script>
+
+    /*************************
+     * Components
+    \*************************/
+
+    var ContactForm = React.createClass({
+      propTypes: {
+        value: React.PropTypes.object.isRequired,
+        onChange: React.PropTypes.func.isRequired,
+        onSubmit: React.PropTypes.func.isRequired,
+      },
+
+      onNameInput: function(e) {
+        this.props.onChange(
+          Object.assign(
+            {},
+            this.props.value,
+            { name: e.target.value }
+          )
+        )
+      },
+
+      onEmailInput: function(e) {
+        this.props.onChange(
+          Object.assign(
+            {},
+            this.props.value,
+            { email: e.target.value }
+          )
+        )
+      },
+
+      onDescripInput: function(e) {
+        this.props.onChange(
+          Object.assign(
+            {},
+            this.props.value,
+            { description: e.target.value }
+          )
+        )
+      },
+
+      onSubmit: function(e) {
+        e.preventDefault();
+        this.refs.name.focus();
+        this.props.onSubmit();
+      },
+
+      componentDidUpdate: function(prevProps) {
+        var value = this.props.value;
+        var prevValue = prevProps.value;
+
+        if (this.isMounted && value.errors && value.errors != prevValue.errors) {
+          if (value.errors.email) {
+            this.refs.email.focus();
+          }
+          else if (value.errors.name) {
+            this.refs.name.focus();
+          }
+        }
+      },
+
+      render: function() {
+        var errors = this.props.value.errors || {};
+
+        return (
+          React.createElement('form', {
+            onSubmit: this.onSubmit, 
+            className: 'contact-form', 
+            noValidate: true
+          }, 
+            React.createElement('h2', {}, 'Add new contact'),
+            React.createElement('input', {
+              type: 'text',
+              className: errors.name && 'contact-form__error',
+              placeholder: 'Name',
+              ref: 'name',
+              value: this.props.value.name,
+              onChange: this.onNameInput,
+              autoFocus: true,
+            }),
+            React.createElement('input', {
+              type: 'email',
+              className: errors.email && 'contact-form__error',
+              placeholder: 'Email',
+              ref: 'email',
+              value: this.props.value.email,
+              onChange: this.onEmailInput,
+            }),
+            React.createElement('textarea', {
+              placeholder: 'Description',
+              value: this.props.value.description,
+              onChange: this.onDescripInput
+            }),
+            React.createElement('button', { 
+              type: 'submit' 
+            }, 'Add Contact')
+          )
+        )
+      }
+    })
+
+    var ContactItem = React.createClass({
+      propTypes: {
+        name: React.PropTypes.string.isRequired,
+        email: React.PropTypes.string.isRequired,
+        description: React.PropTypes.string,
+      },
+
+      render: function() {
+        // I wrap mult-line return statements in parentheses to avoid the inevitable bugs caused by forgetting that JavaScript will throw away the final lines when possible. The parentheses are not strictly necessary.
+
+        return (
+          React.createElement('li', {className: 'contact-item'}, 
+            React.createElement('h2', {className: 'contact-item__name'}, this.props.name),
+            React.createElement('a', {className: 'contact-item__email', href: 'mailto:' + this.props.email}, this.props.email),
+            React.createElement('div', {className: 'contact-item__description'}, this.props.description)
+          )
+        )
+      }
+    })
+
+    var ContactView = React.createClass({
+      propTypes: {
+        contacts: React.PropTypes.array.isRequired,
+        newContact: React.PropTypes.object.isRequired,
+        onNewContactSubmit: React.PropTypes.func.isRequired,
+      },
+
+      render: function() {
+        var contactItemElements = this.props.contacts
+          .filter(function(contact) { return contact.email })
+          .map(function(contact) { return React.createElement(ContactItem, contact) })
+
+        return (
+          React.createElement('div', {className: 'contact-view'},
+            React.createElement('h1', {className: 'contact-view__title'}, 'Contacts'),
+            React.createElement('ul', {className: 'contact-view__list'}, contactItemElements), 
+            React.createElement(ContactForm, { 
+              value: this.props.newContact,
+              onChange: this.props.onNewContactChange,
+              onSubmit: this.props.onNewContactSubmit,
+            })
+          )
+        )
+      }, 
+    })
+
+    /*************************
+     * Constants
+    \*************************/
+
+    var CONTACT_TEMPLATE = {name: "", email: "", description: "", errors: null};
+
+    /*************************
+     * Actions
+    \*************************/
+
+    function updateNewContact(contact) {
+      setState({ newContact: contact });
+    }
+
+    function submitNewContact() {
+      var contact = Object.assign({}, state.newContact, { key: state.contacts.length + 1, errors: {}});
+
+      if (!/.+@.+\..+/.test(contact.email)) {
+        contact.errors.email = ["Please enter your new contact's email address"];
+      }
+      if (!contact.name) {
+        contact.errors.name = ["Please enter your new contact's name"];
+      }
+      
+      setState(
+        Object.keys(contact.errors).length === 0
+        ? {
+            newContact: Object.assign({}, CONTACT_TEMPLATE),
+            contacts: state.contacts.slice(0).concat(contact),
+          }
+        : { newContact: contact }
+      );
+    }
+
+    /*************************
+     * Model
+    \*************************/
+
+    // The app's complete current state
+    var state = {}
+
+    // Make the given changes to the state and perform any required housekeeping
+    function setState(changes) {
+      Object.assign(state, changes);
+
+      ReactDOM.render(
+        React.createElement(ContactView, Object.assign({}, state, { onNewContactChange: updateNewContact, 
+          onNewContactSubmit: submitNewContact,
+        })),
+        document.getElementById('react-app')
+      );
+    }
+
+    // Set initial data
+    setState({
+      contacts: [
+        { key: 1, name: "James K Nelson", email: "james@jamesknelson.com", description: "Front-end Unicorn" },
+        { key: 2, name: "Jim", email: "jim@example.com" },
+        { key: 3, name: "Joe" },
+        { key: 4, name: "Wilko", email: "jack@example.com" },
+      ],
+      newContact: Object.assign({}, CONTACT_TEMPLATE),
+    })
+  </script>
+</html>
